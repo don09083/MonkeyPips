@@ -90,3 +90,14 @@ export async function hashSecurityAnswer(answer: string): Promise<string> {
   const normalized = answer.trim().toLowerCase().replace(/\s+/g, ' ');
   return sha256Hex(`monkeychat_sec_v1:${normalized}`);
 }
+
+/**
+ * Computes a deterministic document ID for a display name to verify uniqueness in Firestore.
+ * Matches ^[a-zA-Z0-9_\-]+$ and length <= 128 characters.
+ */
+export async function getDisplayNameDocId(displayName: string): Promise<string> {
+  const normalized = displayName.trim().toLowerCase();
+  const hash = await sha256Hex(`monkeychat_dn_v1:${normalized}`);
+  return `dn_${hash.slice(0, 48)}`;
+}
+

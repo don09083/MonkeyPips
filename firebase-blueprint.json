@@ -257,6 +257,32 @@
         "updatedAt"
       ]
     },
+    "DisplayNameRecord": {
+      "title": "DisplayNameRecord",
+      "description": "Unique display name registration record to prevent duplicate Japanese identities in the database.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "Unique generated Japanese persona name",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "usernameId": {
+          "type": "string",
+          "description": "Owning username ID",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when this display name was claimed"
+        }
+      },
+      "required": ["displayName", "usernameId", "createdAt"]
+    },
     "ChatMessage": {
       "title": "ChatMessage",
       "description": "Real-time chat message posted inside a chat room session.",
@@ -333,6 +359,10 @@
     }
   },
   "firestore": {
+    "/display_names/{nameId}": {
+      "schema": "DisplayNameRecord",
+      "description": "Registry of claimed display names to enforce uniqueness across all accounts."
+    },
     "/accounts/{usernameId}": {
       "schema": "Account",
       "description": "Private user account credentials, security question hashes, random Japanese identity, and permanent room code."

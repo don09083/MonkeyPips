@@ -12,9 +12,12 @@ import {
   LogOut,
   Maximize2,
   Minimize2,
+  PanelLeftClose,
+  PanelLeftOpen,
   RefreshCw,
   Send,
   Share2,
+  Smile,
   Sparkles,
   Unlock,
   Users,
@@ -39,6 +42,7 @@ import {
   syncRoomStateToCloud,
 } from '../services/monkeyChatService';
 import { AvatarDisplay } from './AvatarDisplay';
+import { GoogleChatEmojiPicker } from './GoogleChatEmojiPicker';
 
 interface DashboardViewProps {
   account: MonkeyChatAccount;
@@ -59,8 +63,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [roomMembers, setRoomMembers] = useState<RoomMemberRecord[]>([]);
   const [messages, setMessages] = useState<ChatMessageRecord[]>([]);
 
-  // Chat Only Mode (toggled by top-right button icon or Alt + H shortcut)
-  const [chatOnlyMode, setChatOnlyMode] = useState(false);
+  // Chat Only Mode (toggled by top-right button icon or Alt + H shortcut, persisted to localStorage)
+  const [chatOnlyMode, setChatOnlyMode] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('chatOnlyMode');
+      if (stored !== null) {
+        return stored === 'true';
+      }
+      return localStorage.getItem('monkeychat_chat_only_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleChatOnlyMode = () => {
+    setChatOnlyMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('chatOnlyMode', String(next));
+        localStorage.setItem('monkeychat_chat_only_mode', String(next));
+      } catch {
+        // Ignore storage errors
+      }
+      return next;
+    });
+  };
 
   // Top-right "Join other room?" state
   const [joinCodeInput, setJoinCodeInput] = useState('');
@@ -95,6 +122,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [bindFeedback, setBindFeedback] = useState<string | null>(null);
   const [bindError, setBindError] = useState<string | null>(null);
 
+  // Left sidebar hidden toggle state
+  const [isSidebarHidden, setIsSidebarHidden] = useState<boolean>(() => {
+    return localStorage.getItem('monkeychat_sidebar_hidden') === 'true';
+  });
+
+  const toggleSidebarHidden = () => {
+    setIsSidebarHidden((prev) => {
+      const next = !prev;
+      localStorage.setItem('monkeychat_sidebar_hidden', String(next));
+      return next;
+    });
+  };
+
+  // Google Chat Emoji Picker state
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
   // Copy Room Code / Share state
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -109,12 +152,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Keyboard shortcut: Alt + H toggles "Chat Only" view
+  // Keyboard shortcut: Alt + H toggles "Chat Only" view and persists state
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && (e.key === 'h' || e.key === 'H')) {
         e.preventDefault();
-        setChatOnlyMode((prev) => !prev);
+        toggleChatOnlyMode();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -435,7 +478,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     <div
       className={
         chatOnlyMode
-          ? 'min-h-screen bg-[#000000] text-[#d1d0c5] flex flex-col font-chococooky'
+          ? 'min-h-screen bg-[#323437] text-[#d1d0c5] flex flex-col font-chococooky'
           : 'min-h-screen bg-[#323437] text-[#d1d0c5] flex flex-col'
       }
     >
@@ -443,51 +486,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {!chatOnlyMode && (
         <header className="w-full bg-[#2c2e31] border-b border-[#444444] px-6 py-3.5">
           <div className="max-w-[1440px] mx-auto flex flex-wrap items-center justify-between gap-4">
-            {/* Zone 1: Single text element wordmark */}
-            <a
-              href="#dashboard"
-              onClick={(e) => {
-                e.preventDefault();
-                handleSwitchToPersonalRoom();
-              }}
-              className="text-xl font-bold tracking-tight text-[#e2b714] whitespace-nowrap shrink-0"
-            >
-              MonkeyChat
-            </a>
+            {/* Zone 1: Single text element wordmark + Panel Toggle Button */}
+            <div className="flex items-center gap-3">
+              <a
+                href="#dashboard"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleSwitchToPersonalRoom();
+                }}
+                className="text-xl font-bold tracking-tight text-[#e2b714] whitespace-nowrap shrink-0"
+              >
+                MonkeyChat
+              </a>
+              <button
+                type="button"
+                onClick={toggleSidebarHidden}
+                className="px-2.5 py-1 text-xs text-[#999999] hover:text-[#d1d0c5] bg-[#323437] border border-[#444444] hover:border-[#e2b714] rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                title={isSidebarHidden ? 'Show left panel' : 'Hide left panel'}
+              >
+                {isSidebarHidden ? (
+                  <>
+                    <PanelLeftOpen className="w-3.5 h-3.5 text-[#e2b714]" />
+                    <span>Show Panel</span>
+                  </>
+                ) : (
+                  <>
+                    <PanelLeftClose className="w-3.5 h-3.5 text-[#888888]" />
+                    <span>Hide Panel</span>
+                  </>
+                )}
+              </button>
+            </div>
 
-            {/* Zone 2: Clean text navigation links */}
-            <nav className="hidden xl:flex items-center gap-6 text-sm font-medium text-[#646669]">
-              <button
-                type="button"
-                onClick={handleSwitchToPersonalRoom}
-                className={`transition-colors duration-150 whitespace-nowrap cursor-pointer hover:text-[#d1d0c5] ${
-                  isOwnPersonalRoom
-                    ? 'text-[#e2b714] underline underline-offset-8'
-                    : ''
-                }`}
-              >
-                Personal Room ({account.roomCode})
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowGenderPrompt((prev) => !prev)}
-                className="transition-colors duration-150 whitespace-nowrap cursor-pointer hover:text-[#d1d0c5]"
-              >
-                Random Identity
-              </button>
-              <button
-                type="button"
-                onClick={handleCopyRoomCode}
-                className="transition-colors duration-150 whitespace-nowrap cursor-pointer hover:text-[#d1d0c5]"
-              >
-                Copy My Code
-              </button>
-              <span className="text-xs font-mono text-[#646669] whitespace-nowrap">
-                Active: #{activeRoomCode}
-              </span>
-            </nav>
-
-            {/* Zone 3: Top-right corner "Join other room?" section + Logout button */}
+            {/* Zone 3: Top-right corner "Join other room?" section, Chat Only button & Logout */}
             <div className="flex flex-wrap items-center gap-3">
               <form
                 onSubmit={handleJoinOtherRoom}
@@ -519,6 +550,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {joiningRoom ? 'Joining...' : 'Join'}
                 </button>
               </form>
+
+              <button
+                type="button"
+                onClick={toggleChatOnlyMode}
+                className="px-3.5 py-2 text-xs font-semibold bg-[#323437] text-[#d1d0c5] border border-[#444444] rounded-md hover:border-[#e2b714] hover:text-[#e2b714] transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                title="Chat Only view (Alt + H)"
+                aria-label="Chat Only view"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Chat Only</span>
+              </button>
 
               <button
                 type="button"
@@ -557,14 +599,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <main
         className={
           chatOnlyMode
-            ? 'flex-1 w-full h-screen p-0 m-0 flex flex-col'
+            ? 'flex-1 w-full h-screen p-0 m-0 flex flex-col bg-[#323437]'
+            : isSidebarHidden
+            ? 'flex-1 w-full max-w-[1440px] mx-auto px-6 py-6 flex flex-col items-stretch'
             : 'flex-1 w-full max-w-[1440px] mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch'
         }
       >
-        {/* Left Sidebar: Personal Profile, Random Identity Generator, Gmail Binding, Room Code & Participants (4 cols) */}
-        {!chatOnlyMode && (
+        {/* Left Sidebar: Personal Profile, Gmail Binding, Room Code & Participants */}
+        {!chatOnlyMode && !isSidebarHidden && (
           <aside className="lg:col-span-4 flex flex-col gap-6">
-          {/* 1. Personal Profile & Random Identity Card */}
+          {/* 1. Personal Profile Card */}
           <section className="bg-[#2c2e31] border border-[#444444] rounded-lg p-5 space-y-5">
             <div className="flex items-center justify-between border-b border-[#444444] pb-3.5">
               <div>
@@ -575,7 +619,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   @{account.username} · Auto-generated Japanese Persona
                 </p>
               </div>
-              <Sparkles className="w-4 h-4 text-[#e2b714] shrink-0" />
+              <button
+                type="button"
+                onClick={toggleSidebarHidden}
+                className="px-2 py-1 text-xs text-[#888888] hover:text-[#d1d0c5] hover:bg-[#323437] rounded transition-colors flex items-center gap-1 cursor-pointer"
+                title="Hide this section"
+              >
+                <PanelLeftClose className="w-3.5 h-3.5" />
+                <span>Hide</span>
+              </button>
             </div>
 
             {/* Current Identity Display (Read-Only: Users cannot manually type display name or upload avatar) */}
@@ -599,65 +651,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   Gender: {account.gender} · Avatar: {account.avatarId}
                 </p>
               </div>
-            </div>
-
-            {/* "Generate Random Identity" Button & Gender Prompt */}
-            <div className="space-y-3 pt-1">
-              <button
-                type="button"
-                onClick={() => setShowGenderPrompt((prev) => !prev)}
-                disabled={generatingIdentity}
-                className="w-full py-2.5 px-4 text-xs font-semibold bg-[#e2b714] text-[#323437] rounded-md hover:opacity-90 transition-opacity duration-150 flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer"
-              >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${
-                    generatingIdentity ? 'animate-spin' : ''
-                  }`}
-                />
-                <span>Generate Random Identity</span>
-              </button>
-
-              {showGenderPrompt && (
-                <div className="p-3.5 rounded-md bg-[#323437] border border-[#444444] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-[#d1d0c5]">
-                      Choose gender for your random Japanese identity:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowGenderPrompt(false)}
-                      className="text-xs text-[#646669] hover:text-[#d1d0c5] cursor-pointer"
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['male', 'female', 'neutral'] as IdentityGender[]).map(
-                      (g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          disabled={generatingIdentity}
-                          onClick={() => handleGenerateRandomIdentity(g)}
-                          className={`py-2 px-3 text-xs font-semibold rounded border transition-colors duration-150 capitalize whitespace-nowrap cursor-pointer ${
-                            selectedGender === g
-                              ? 'bg-[#e2b714] text-[#323437] border-[#e2b714]'
-                              : 'bg-[#2c2e31] text-[#d1d0c5] border-[#444444] hover:border-[#e2b714]'
-                          }`}
-                        >
-                          {g}
-                        </button>
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {identityFeedback && (
-                <p className="text-xs text-[#e2b714] font-mono">
-                  {identityFeedback}
-                </p>
-              )}
             </div>
 
             {/* Account Storage Mode & Option to Bind Account to Gmail */}
@@ -855,16 +848,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           }}
           className={
             chatOnlyMode
-              ? 'w-full h-full min-h-screen bg-[#000000] text-[#d1d0c5] flex flex-col justify-between font-chococooky relative overflow-hidden'
-              : 'lg:col-span-8 bg-[#000000] text-[#d1d0c5] border border-[#222222] rounded-lg flex flex-col justify-between h-[calc(100vh-140px)] min-h-[560px] font-chococooky relative overflow-hidden'
+              ? 'w-full h-full min-h-screen bg-[#323437] text-[#d1d0c5] flex flex-col justify-between font-chococooky relative overflow-hidden'
+              : isSidebarHidden
+              ? 'w-full flex-1 bg-[#323437] text-[#d1d0c5] border border-[#444444] rounded-lg flex flex-col justify-between h-[calc(100vh-140px)] min-h-[560px] font-chococooky relative overflow-hidden'
+              : 'lg:col-span-8 bg-[#323437] text-[#d1d0c5] border border-[#444444] rounded-lg flex flex-col justify-between h-[calc(100vh-140px)] min-h-[560px] font-chococooky relative overflow-hidden'
           }
         >
           {/* Top-Right Toggle Button when in Chat-Only Mode */}
           {chatOnlyMode && (
             <button
               type="button"
-              onClick={() => setChatOnlyMode(false)}
-              className="absolute top-4 right-4 z-20 p-2 text-[#d1d0c5] hover:text-[#ffffff] transition-colors cursor-pointer"
+              onClick={toggleChatOnlyMode}
+              className="absolute top-4 right-4 z-20 p-2 text-[#d1d0c5] hover:text-[#ffffff] bg-[#2c2e31]/80 hover:bg-[#2c2e31] border border-[#444444] rounded-md transition-colors cursor-pointer shadow-md"
               title="Exit Chat Only view (Alt + H)"
               aria-label="Exit Chat Only view"
             >
@@ -874,7 +869,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           {/* Active Chat Room Header - Hidden when Chat Only view is triggered */}
           {!chatOnlyMode && (
-            <div className="px-6 py-4 border-b border-[#222222] flex flex-wrap items-center justify-between gap-3 bg-[#000000] text-[#d1d0c5] shrink-0">
+            <div className="px-6 py-4 border-b border-[#444444] flex flex-wrap items-center justify-between gap-3 bg-[#323437] text-[#d1d0c5] shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded flex items-center justify-center text-[#888888]">
                   <Hash className="w-5 h-5 text-[#888888]" />
@@ -891,7 +886,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         : 'Joined Group Room'}
                     </span>
                     {activeRoom?.isLocked && (
-                      <span className="flex items-center gap-1 text-[11px] text-[#a0a0a0] border border-[#333333] px-2 py-0.5 rounded">
+                      <span className="flex items-center gap-1 text-[11px] text-[#a0a0a0] border border-[#444444] px-2 py-0.5 rounded">
                         <Lock className="w-3 h-3 text-[#a0a0a0]" />
                         <span>Password Protected</span>
                       </span>
@@ -910,17 +905,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <button
                     type="button"
                     onClick={handleSwitchToPersonalRoom}
-                    className="px-3 py-1 text-xs text-[#d1d0c5] border border-[#333333] rounded hover:border-[#666666] hover:bg-[#111111] transition-colors whitespace-nowrap cursor-pointer"
+                    className="px-3 py-1 text-xs text-[#d1d0c5] border border-[#444444] rounded hover:border-[#666666] hover:bg-[#2c2e31] transition-colors whitespace-nowrap cursor-pointer"
                   >
                     Return to My Room
                   </button>
                 )}
 
+                {/* Left Panel Collapse/Expand Toggle Button */}
+                <button
+                  type="button"
+                  onClick={toggleSidebarHidden}
+                  className="p-1.5 rounded text-[#d1d0c5] hover:text-[#ffffff] hover:bg-[#2c2e31] transition-colors cursor-pointer flex items-center gap-1.5 text-xs"
+                  title={isSidebarHidden ? 'Show left panel' : 'Hide left panel'}
+                  aria-label={isSidebarHidden ? 'Show left panel' : 'Hide left panel'}
+                >
+                  {isSidebarHidden ? (
+                    <>
+                      <PanelLeftOpen className="w-4 h-4 text-[#e2b714]" />
+                      <span className="hidden md:inline text-xs">Show Panel</span>
+                    </>
+                  ) : (
+                    <>
+                      <PanelLeftClose className="w-4 h-4 text-[#888888]" />
+                      <span className="hidden md:inline text-xs">Hide Panel</span>
+                    </>
+                  )}
+                </button>
+
                 {/* 1. TOP-RIGHT CHAT TOGGLE BUTTON (and Alt + H shortcut) */}
                 <button
                   type="button"
-                  onClick={() => setChatOnlyMode(true)}
-                  className="p-1.5 rounded text-[#d1d0c5] hover:text-[#ffffff] hover:bg-[#111111] transition-colors cursor-pointer"
+                  onClick={toggleChatOnlyMode}
+                  className="p-1.5 rounded text-[#d1d0c5] hover:text-[#ffffff] hover:bg-[#2c2e31] transition-colors cursor-pointer"
                   title="Chat Only view (Alt + H)"
                   aria-label="Enter Chat Only view"
                 >
@@ -930,11 +946,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           )}
 
-          {/* Chat Message Stream - pure black background, light gray text, anchored flex-1 */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-[#000000] space-y-4 font-chococooky text-[#d1d0c5] flex flex-col">
+          {/* Chat Message Stream - #323437 background, light gray text, anchored flex-1 */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-[#323437] space-y-4 font-chococooky text-[#d1d0c5] flex flex-col">
             {messages.length === 0 ? (
               <div className="flex-1 flex items-end pb-2">
-                <p className="text-xs text-[#555555] font-chococooky">
+                <p className="text-xs text-[#999999] font-chococooky">
                   No messages yet in #{activeRoomCode}. Type below to start chatting...
                 </p>
               </div>
@@ -946,7 +962,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     key={msg.messageId}
                     className="flex items-start gap-3 justify-start text-left"
                   >
-                    <div className="w-8 h-8 rounded-full border border-[#333333] overflow-hidden grayscale contrast-125 bg-[#111111] shrink-0 flex items-center justify-center text-[#d1d0c5]">
+                    <div className="w-8 h-8 rounded-full border border-[#444444] overflow-hidden grayscale contrast-125 bg-[#2c2e31] shrink-0 flex items-center justify-center text-[#d1d0c5]">
                       <AvatarDisplay
                         avatarId={msg.senderAvatarId}
                         displayName={msg.senderDisplayName}
@@ -954,13 +970,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       />
                     </div>
 
-                    {/* Left aligned, light gray text on pure black background */}
+                    {/* Left aligned, light gray text on #323437 background */}
                     <div className="flex-1 min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2 text-xs">
                         <span className="font-bold text-[#f2efde]">
                           {msg.senderDisplayName}
                         </span>
-                        <span className="text-[#777777] text-[11px]">
+                        <span className="text-[#888888] text-[11px]">
                           @{msg.senderUsername}
                         </span>
                         {isSender && (
@@ -968,7 +984,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             (You)
                           </span>
                         )}
-                        <span className="text-[#666666] text-[11px]">
+                        <span className="text-[#888888] text-[11px]">
                           {formatTime(msg.createdAtMs)}
                         </span>
                       </div>
@@ -984,8 +1000,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Chat Composer Footer - at the bottom, pure black background, light gray text */}
-          <div className="p-4 bg-[#000000] mt-auto shrink-0 font-chococooky border-t border-[#1a1a1a]">
+          {/* Chat Composer Footer - at the bottom, #323437 background, light gray text */}
+          <div className="p-4 bg-[#323437] mt-auto shrink-0 font-chococooky border-t border-[#444444] relative">
+            {showEmojiPicker && (
+              <GoogleChatEmojiPicker
+                onSelectEmoji={(emoji) => {
+                  setMessageText((prev) => prev + emoji);
+                }}
+                onClose={() => setShowEmojiPicker(false)}
+              />
+            )}
             {chatError && (
               <p className="text-xs text-[#e2b714] mb-2 font-mono">
                 {chatError}
@@ -1001,16 +1025,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 onChange={(e) => setMessageText(e.target.value)}
                 maxLength={1000}
                 placeholder="Type here. . . "
-                className="flex-1 bg-transparent px-2 py-2 text-sm text-[#d1d0c5] placeholder-[#666666] placeholder:text-[#666666] border-none outline-none focus:outline-none focus:ring-0 transition-colors font-chococooky"
+                className="flex-1 bg-transparent px-2 py-2 text-sm text-[#d1d0c5] placeholder-[#888888] placeholder:text-[#888888] border-none outline-none focus:outline-none focus:ring-0 transition-colors font-chococooky"
               />
-              <button
-                type="submit"
-                disabled={sendingMessage || !messageText.trim()}
-                aria-label="Send message"
-                className="p-2 text-[#d1d0c5] hover:text-[#ffffff] disabled:opacity-30 transition-opacity cursor-pointer flex items-center justify-center shrink-0"
-              >
-                <Send className="w-5 h-5 text-[#d1d0c5]" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                {/* Default Emoji of Google Chat button */}
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker((prev) => !prev)}
+                  title="Choose emoji (Google Chat emojis)"
+                  aria-label="Choose emoji"
+                  className="p-2 text-[#d1d0c5] hover:text-[#ffffff] hover:bg-[#2c2e31] rounded-full transition-colors cursor-pointer flex items-center justify-center shrink-0"
+                >
+                  <Smile className="w-5 h-5 text-[#d1d0c5]" />
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingMessage || !messageText.trim()}
+                  aria-label="Send message"
+                  className="p-2 text-[#d1d0c5] hover:text-[#ffffff] hover:bg-[#2c2e31] rounded-full disabled:opacity-30 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                >
+                  <Send className="w-5 h-5 text-[#d1d0c5]" />
+                </button>
+              </div>
             </form>
           </div>
         </section>

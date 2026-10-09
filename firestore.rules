@@ -19,6 +19,15 @@ service cloud.firestore {
       allow get: if isValidId(docId);
     }
 
+    // Reserved unique display names registry to prevent duplicate personas in the database
+    match /display_names/{nameId} {
+      allow get: if isValidId(nameId);
+      allow list: if false;
+      allow create, update: if isValidId(nameId) &&
+        incoming().displayName is string;
+      allow delete: if false;
+    }
+
     match /accounts/{usernameId} {
       allow get: if isValidId(usernameId);
       allow list: if false;

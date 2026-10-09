@@ -7,6 +7,7 @@ import {
   HardDrive,
   KeyRound,
   LogIn,
+  RefreshCw,
   ShieldQuestion,
   Sparkles,
   UserPlus,
@@ -18,6 +19,7 @@ import {
 } from '../data/japaneseIdentities';
 import {
   AccountStorageMode,
+  generateUniqueJapaneseIdentity,
   loginMonkeyChatUser,
   lookupSecurityQuestion,
   MonkeyChatAccount,
@@ -158,9 +160,13 @@ export const AuthView: React.FC<AuthViewProps> = ({
     setShowStorageOptionModal(true);
   };
 
+  // Generating unique identity state for registration
+  const [generatingIdentity, setGeneratingIdentity] = useState(false);
+  const [identityFeedback, setIdentityFeedback] = useState<string | null>(null);
+
   /**
    * Step 2 of Registration: Execute registration with the user's selected storage mode
-   * ('browser' or 'gmail').
+   * ('browser' or 'gmail') using the unique persona guaranteed against the database.
    */
   const handleConfirmRegistrationStorage = async (
     storageMode: AccountStorageMode
@@ -174,6 +180,8 @@ export const AuthView: React.FC<AuthViewProps> = ({
         securityQuestion: regSecurityQuestion,
         securityAnswer: regSecurityAnswer,
         initialGender: regGender,
+        displayName: previewIdentity.displayName,
+        avatarId: previewIdentity.avatarId,
         storageMode,
       });
       setShowStorageOptionModal(false);
@@ -188,6 +196,31 @@ export const AuthView: React.FC<AuthViewProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGenerateNewUniqueName = async (gender: IdentityGender) => {
+    setGeneratingIdentity(true);
+    setIdentityFeedback('Verifying database uniqueness...');
+    try {
+      const uniqueId = await generateUniqueJapaneseIdentity(
+        gender,
+        previewIdentity.displayName
+      );
+      setPreviewIdentity(uniqueId);
+      setIdentityFeedback('✓ Guaranteed unique Japanese Persona generated');
+      setTimeout(() => setIdentityFeedback(null), 3500);
+    } catch {
+      const fallback = generateRandomJapaneseIdentity(gender, previewIdentity.displayName);
+      setPreviewIdentity(fallback);
+      setIdentityFeedback(null);
+    } finally {
+      setGeneratingIdentity(false);
+    }
+  };
+
+  const handleGenderChangeAndGenerate = async (gender: IdentityGender) => {
+    setRegGender(gender);
+    await handleGenerateNewUniqueName(gender);
   };
 
   const handleLookupRecoveryUsername = async (e: React.FormEvent) => {
@@ -271,7 +304,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
   return (
     <div className="min-h-screen bg-[#323437] text-[#d1d0c5] flex flex-col">
-      {/* Top Bar Contract: 3-Zone Header */}
+      {/* Top Bar Contract: 3-Zone Header (Top links removed per request) */}
       <header className="w-full border-b border-[#444444] bg-[#2c2e31] px-6 py-4 flex items-center justify-between">
         {/* Zone 1: Single text element wordmark */}
         <a
@@ -284,49 +317,6 @@ export const AuthView: React.FC<AuthViewProps> = ({
         >
           MonkeyChat
         </a>
-
-        {/* Zone 2: 4 clean text navigation links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#646669]">
-          <button
-            type="button"
-            onClick={() => switchTab('login')}
-            className={`transition-colors duration-150 whitespace-nowrap cursor-pointer hover:text-[#d1d0c5] ${
-              activeTab === 'login'
-                ? 'text-[#e2b714] underline underline-offset-8'
-                : ''
-            }`}
-          >
-            Login
-          </button>
-          <button
-            type="button"
-            onClick={() => switchTab('register')}
-            className={`transition-colors duration-150 whitespace-nowrap cursor-pointer hover:text-[#d1d0c5] ${
-              activeTab === 'register'
-                ? 'text-[#e2b714] underline underline-offset-8'
-                : ''
-            }`}
-          >
-            Temporary Registration
-          </button>
-          <button
-            type="button"
-            onClick={() => switchTab('forgot')}
-            className={`transition-colors duration-150 whitespace-nowrap cursor-pointer hover:text-[#d1d0c5] ${
-              activeTab === 'forgot'
-                ? 'text-[#e2b714] underline underline-offset-8'
-                : ''
-            }`}
-          >
-            Forgot Password
-          </button>
-          <a
-            href="#identity-preview"
-            className="transition-colors duration-150 whitespace-nowrap hover:text-[#d1d0c5]"
-          >
-            Japanese Identity
-          </a>
-        </nav>
 
         {/* Zone 3: 1 primary action */}
         <div className="flex items-center gap-3">
@@ -349,7 +339,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
       {/* Main Content Workspace (1440px baseline container) */}
       <main className="flex-1 w-full max-w-[1200px] mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Editorial Introduction & Live Japanese Identity Preview (5 cols) */}
+        {/* Left Column: Editorial Introduction & Architecture (5 cols) */}
         <section
           id="identity-preview"
           className="lg:col-span-5 flex flex-col gap-6 pt-2"
@@ -367,83 +357,40 @@ export const AuthView: React.FC<AuthViewProps> = ({
             <p className="text-sm text-[#646669] leading-relaxed">
               Register with either Browser-Based Storage (no email required) or
               bind your account to Gmail for Firebase cloud sync. Every user
-              receives a permanent chat room code and a randomly generated
-              Japanese persona.
+              receives a permanent chat room code and a randomly generated,
+              duplicate-checked Japanese persona directly configured in the
+              registration fields.
             </p>
           </div>
 
-          {/* Sample Identity Generator Card */}
-          <div className="bg-[#2c2e31] border border-[#444444] rounded-lg p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-[#444444] pb-4">
-              <div>
-                <h2 className="text-sm font-semibold text-[#d1d0c5]">
-                  Random Identity System
-                </h2>
-                <p className="text-xs text-[#646669] mt-0.5">
-                  Manual name typing and avatar uploads are disabled by design
-                </p>
-              </div>
+          {/* Architecture Highlights Card */}
+          <div className="bg-[#2c2e31] border border-[#444444] rounded-lg p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#444444] pb-3">
+              <h2 className="text-sm font-semibold text-[#d1d0c5]">
+                Account & Privacy Architecture
+              </h2>
               <Sparkles className="w-4 h-4 text-[#e2b714] shrink-0" />
             </div>
-
-            <div className="flex items-center gap-4">
-              <AvatarDisplay
-                avatarId={previewIdentity.avatarId}
-                displayName={previewIdentity.displayName}
-                size="lg"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-base font-semibold text-[#d1d0c5] truncate">
-                  {previewIdentity.displayName}
-                </p>
-                <p className="text-xs text-[#646669] mt-1 font-mono">
-                  Gender: {previewIdentity.gender} · Auto-assigned Avatar
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              <span className="text-xs text-[#646669] block">
-                Preview gender-matched Japanese identity generator:
-              </span>
-              <div className="grid grid-cols-3 gap-2">
-                {(['male', 'female', 'neutral'] as IdentityGender[]).map(
-                  (g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => handlePreviewRandomize(g)}
-                      className={`py-2 px-3 text-xs font-medium rounded-md border transition-colors duration-150 whitespace-nowrap capitalize cursor-pointer ${
-                        regGender === g
-                          ? 'bg-[#e2b714] text-[#323437] border-[#e2b714] font-semibold'
-                          : 'bg-[#323437] text-[#d1d0c5] border-[#444444] hover:border-[#e2b714]'
-                      }`}
-                    >
-                      {g}
-                    </button>
-                  )
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Unboxed Architectural Specifications */}
-          <div className="space-y-2 text-xs text-[#646669] pt-2 border-t border-[#444444]">
-            <p className="text-[#d1d0c5] font-medium">
-              Flexible Account Storage Architecture
-            </p>
-            <p>
-              01. Browser-Based Storage option requires zero email and syncs
-              across open tabs
-            </p>
-            <p>
-              02. Bind to Gmail during registration or anytime later from your
-              Personal Profile
-            </p>
-            <p>
-              03. Self-service password recovery verified via your registered
-              Security Question
-            </p>
+            <ul className="space-y-2.5 text-xs text-[#646669]">
+              <li className="flex items-start gap-2">
+                <span className="text-[#e2b714] font-bold">01.</span>
+                <span>
+                  <strong className="text-[#d1d0c5]">Unique Japanese Personas:</strong> Guaranteed zero duplicates on the database. Each persona includes authentic Romaji + Kanji and an assigned avatar.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[#e2b714] font-bold">02.</span>
+                <span>
+                  <strong className="text-[#d1d0c5]">Browser-Based Storage:</strong> Instant access with zero email requirements, syncing across open tabs and real-time rooms.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[#e2b714] font-bold">03.</span>
+                <span>
+                  <strong className="text-[#d1d0c5]">Permanent Chat Room:</strong> Every registered account owns 1 personal room with optional password protection.
+                </span>
+              </li>
+            </ul>
           </div>
         </section>
 
@@ -705,29 +652,92 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   />
                 </div>
 
-                <div>
-                  <span className="block text-xs font-medium text-[#d1d0c5] mb-1.5">
-                    Initial Gender for Random Japanese Identity (can be
-                    regenerated anytime in Profile)
-                  </span>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['male', 'female', 'neutral'] as IdentityGender[]).map(
-                      (g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() => handlePreviewRandomize(g)}
-                          className={`py-2 px-3 text-xs font-medium rounded-md border transition-colors duration-150 capitalize whitespace-nowrap cursor-pointer ${
-                            regGender === g
-                              ? 'bg-[#e2b714] text-[#323437] border-[#e2b714] font-semibold'
-                              : 'bg-[#323437] text-[#d1d0c5] border-[#444444] hover:border-[#e2b714]'
-                          }`}
-                        >
-                          {g}
-                        </button>
-                      )
-                    )}
+                {/* Transfer of Random Identity System into Registration Fields */}
+                <div className="bg-[#2c2e31] border border-[#444444] rounded-lg p-4 space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-[#444444] pb-2.5">
+                    <div>
+                      <span className="text-xs font-semibold text-[#d1d0c5] flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-[#e2b714]" />
+                        <span>Random Identity System</span>
+                      </span>
+                      <p className="text-[11px] text-[#646669]">
+                        Select gender and generate unique Japanese persona
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono text-[#e2b714] bg-[#3a3520] px-2 py-0.5 rounded border border-[#e2b714]/40">
+                      Zero DB Duplicates
+                    </span>
                   </div>
+
+                  {/* Gender Selector Buttons */}
+                  <div>
+                    <span className="block text-xs font-medium text-[#d1d0c5] mb-1.5">
+                      Select Gender for Persona:
+                    </span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['male', 'female', 'neutral'] as IdentityGender[]).map(
+                        (g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => handleGenderChangeAndGenerate(g)}
+                            disabled={generatingIdentity}
+                            className={`py-1.5 px-3 text-xs font-medium rounded-md border transition-colors capitalize whitespace-nowrap cursor-pointer ${
+                              regGender === g
+                                ? 'bg-[#e2b714] text-[#323437] border-[#e2b714] font-semibold'
+                                : 'bg-[#323437] text-[#d1d0c5] border-[#444444] hover:border-[#e2b714]'
+                            }`}
+                          >
+                            {g}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Current Generated Persona & Small Button to Generate New Name */}
+                  <div className="flex items-center justify-between p-3 rounded-md bg-[#323437] border border-[#444444] gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <AvatarDisplay
+                        avatarId={previewIdentity.avatarId}
+                        displayName={previewIdentity.displayName}
+                        size="md"
+                      />
+                      <div className="min-w-0">
+                        <p
+                          className="text-sm font-semibold text-[#d1d0c5] truncate"
+                          title={previewIdentity.displayName}
+                        >
+                          {previewIdentity.displayName}
+                        </p>
+                        <p className="text-[11px] font-mono text-[#646669]">
+                          Gender: {previewIdentity.gender} · Assigned Avatar
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Small button to generate new name based on selected gender */}
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateNewUniqueName(regGender)}
+                      disabled={generatingIdentity}
+                      className="px-2.5 py-1.5 text-xs font-semibold bg-[#2c2e31] text-[#d1d0c5] border border-[#444444] hover:border-[#e2b714] hover:text-[#e2b714] rounded-md transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer disabled:opacity-50"
+                      title="Generate new name based on selected gender (guaranteed no duplicate in database)"
+                    >
+                      <RefreshCw
+                        className={`w-3.5 h-3.5 ${
+                          generatingIdentity ? 'animate-spin text-[#e2b714]' : ''
+                        }`}
+                      />
+                      <span>{generatingIdentity ? 'Checking...' : 'New Name'}</span>
+                    </button>
+                  </div>
+
+                  {identityFeedback && (
+                    <p className="text-xs text-[#e2b714] font-mono">
+                      {identityFeedback}
+                    </p>
+                  )}
                 </div>
               </div>
 

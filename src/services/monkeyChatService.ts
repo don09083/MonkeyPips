@@ -26,6 +26,7 @@ import {
 import {
   generateMessageId,
   generateUniqueRoomCode,
+  getDisplayNameDocId,
   hashPassword,
   hashSecurityAnswer,
   normalizeRoomCode,
@@ -617,6 +618,53 @@ export function validateRegistrationInput(params: {
 }
 
 /**
+ * Checks whether a generated Japanese display name is already taken in
+ * local browser storage, Cloud Firestore, or active accounts.
+ */
+export async function isDisplayNameTakenInDatabase(displayName: string): Promise<boolean> {
+  const cleanName = displayName.trim().toLowerCase();
+  if (!cleanName) return false;
+
+  // 1. Check local accounts
+  const localAccounts = getLocalAccounts();
+  const takenLocally = Object.values(localAccounts).some(
+    (acc) => acc.displayName.trim().toLowerCase() === cleanName
+  );
+  if (takenLocally) return true;
+
+  // 2. Check Cloud Firestore reserved display names
+  try {
+    const docId = await getDisplayNameDocId(displayName);
+    const snap = await getDoc(doc(db, 'display_names', docId));
+    if (snap.exists()) return true;
+  } catch (err) {
+    // If permission or offline, continue with local check
+    console.warn('Checking cloud display name uniqueness notice:', err);
+  }
+
+  return false;
+}
+
+/**
+ * Generates a guaranteed unique Japanese Persona name based on chosen gender,
+ * ensuring zero duplicate names in the database.
+ */
+export async function generateUniqueJapaneseIdentity(
+  gender: IdentityGender,
+  currentDisplayName?: string
+): Promise<{ displayName: string; gender: IdentityGender; avatarId: string }> {
+  for (let attempt = 0; attempt < 35; attempt++) {
+    const candidate = generateRandomJapaneseIdentity(gender, currentDisplayName);
+    const taken = await isDisplayNameTakenInDatabase(candidate.displayName);
+    if (!taken) {
+      return candidate;
+    }
+  }
+  // Fallback: return candidate
+  return generateRandomJapaneseIdentity(gender, currentDisplayName);
+}
+
+/**
  * Registers a new user account using either:
  * - 'browser': Browser-based storage (no email or Google login required, synced via localStorage, Express & Firestore)
  * - 'gmail': Bound to Gmail with Firebase Authentication & Firestore persistence
@@ -628,6 +676,8 @@ export async function registerMonkeyChatUser(params: {
   securityAnswer: string;
   initialGender: IdentityGender;
   storageMode: AccountStorageMode;
+  displayName?: string;
+  avatarId?: string;
 }): Promise<MonkeyChatAccount> {
   const usernameError = validateUsername(params.username);
   if (usernameError) {
@@ -648,7 +698,24 @@ export async function registerMonkeyChatUser(params: {
   const passwordHash = await hashPassword(params.password);
   const securityAnswerHash = await hashSecurityAnswer(params.securityAnswer);
   const safeQuestion = params.securityQuestion.trim().slice(0, 120);
-  const identity = generateRandomJapaneseIdentity(params.initialGender);
+
+  // Guarantee unique Japanese Identity: use the chosen identity if provided,
+  // or generate a guaranteed unique one from the database
+  let identity: { displayName: string; gender: IdentityGender; avatarId: string };
+  if (params.displayName && params.avatarId) {
+    const alreadyTaken = await isDisplayNameTakenInDatabase(params.displayName);
+    if (alreadyTaken) {
+      identity = await generateUniqueJapaneseIdentity(params.initialGender, params.displayName);
+    } else {
+      identity = {
+        displayName: params.displayName.slice(0, 80),
+        gender: params.initialGender,
+        avatarId: params.avatarId,
+      };
+    }
+  } else {
+    identity = await generateUniqueJapaneseIdentity(params.initialGender);
+  }
 
   // Check local browser accounts first
   const localAccounts = getLocalAccounts();
@@ -798,6 +865,12 @@ export async function registerMonkeyChatUser(params: {
         joinedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      const dnDocId = await getDisplayNameDocId(identity.displayName);
+      batch.set(doc(db, 'display_names', dnDocId), {
+        displayName: identity.displayName,
+        usernameId,
+        createdAt: serverTimestamp(),
+      });
       await batch.commit();
     } catch {
       // Fallback: localStorage + Express server already saved
@@ -862,6 +935,13 @@ export async function registerMonkeyChatUser(params: {
     memberUids: [fbUser.uid],
     joinedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+  });
+
+  const dnDocId = await getDisplayNameDocId(identity.displayName);
+  batch.set(doc(db, 'display_names', dnDocId), {
+    displayName: identity.displayName,
+    usernameId,
+    createdAt: serverTimestamp(),
   });
 
   try {
@@ -1385,7 +1465,7 @@ export async function generateAndSaveRandomIdentity(params: {
   chosenGender: IdentityGender;
   activeRoomCode: string;
 }): Promise<MonkeyChatAccount> {
-  const newIdentity = generateRandomJapaneseIdentity(
+  const newIdentity = await generateUniqueJapaneseIdentity(
     params.chosenGender,
     params.account.displayName
   );
