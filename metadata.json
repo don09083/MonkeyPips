@@ -1,0 +1,8 @@
+{
+  "name": "Remix MonkeyChat",
+  "description": "Sync and Enjoy :D",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

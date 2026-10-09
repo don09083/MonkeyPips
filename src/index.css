@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Choco Cooky';
+  src: local('Choco Cooky'), local('chococooky font'), local('Chococooky'), local('ChocoCooky');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'chococooky font';
+  src: local('Choco Cooky'), local('chococooky font'), local('Chococooky'), local('ChocoCooky');
+  font-display: swap;
+}
+
+.font-chococooky {
+  font-family: 'Choco Cooky', 'chococooky font', 'Chococooky', 'Itim', 'Gaegu', 'Comic Neue', cursive, sans-serif !important;
+}
+
+@layer base {
+  :root {
+    --mc-bg: #323437;
+    --mc-surface: #2c2e31;
+    --mc-text: #d1d0c5;
+    --mc-accent: #e2b714;
+    --mc-sub: #646669;
+    --mc-border: #444444;
+  }
+
+  * {
+    box-shadow: none !important;
+    border-color: #444444;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100vh;
+    background-color: #323437;
+    color: #d1d0c5;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: 0.01em;
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom subtle scrollbar matching Monkeytype dark palette */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #323437;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #444444;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #646669;
+}

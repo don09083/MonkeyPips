@@ -1,0 +1,353 @@
+{
+  "entities": {
+    "Account": {
+      "title": "Account",
+      "description": "Private user account credentials, security question verification data, generated Japanese identity, and permanent room code mapping.",
+      "type": "object",
+      "properties": {
+        "usernameId": {
+          "type": "string",
+          "description": "Normalized lowercase username identifier",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "description": "Display username registered by the user",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "passwordHash": {
+          "type": "string",
+          "description": "SHA-256 hex digest of the account password",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[a-f0-9]+$"
+        },
+        "securityQuestion": {
+          "type": "string",
+          "description": "Selected security question for password recovery",
+          "minLength": 5,
+          "maxLength": 120
+        },
+        "securityAnswerHash": {
+          "type": "string",
+          "description": "SHA-256 hex digest of the normalized security answer",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[a-f0-9]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Randomly generated Japanese full name",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "gender": {
+          "type": "string",
+          "description": "Chosen gender for random Japanese identity generation",
+          "enum": ["male", "female", "neutral"],
+          "minLength": 4,
+          "maxLength": 16
+        },
+        "avatarId": {
+          "type": "string",
+          "description": "Identifier of the matching placeholder avatar",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomCode": {
+          "type": "string",
+          "description": "Unique permanent chat room code owned by this user",
+          "minLength": 4,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the account owner",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the account was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the account was last updated"
+        }
+      },
+      "required": [
+        "usernameId",
+        "username",
+        "passwordHash",
+        "securityQuestion",
+        "securityAnswerHash",
+        "displayName",
+        "gender",
+        "avatarId",
+        "roomCode",
+        "ownerUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Permanent chat room automatically owned by a registered user and accessible by room code.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "description": "Unique room code identifier",
+          "minLength": 4,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the room owner",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUsername": {
+          "type": "string",
+          "description": "Username ID of the room owner",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerDisplayName": {
+          "type": "string",
+          "description": "Generated Japanese display name of the room owner",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "ownerAvatarId": {
+          "type": "string",
+          "description": "Avatar identifier of the room owner",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "status": {
+          "type": "string",
+          "description": "Lifecycle status of the chat room",
+          "enum": ["active", "archived"],
+          "minLength": 6,
+          "maxLength": 16
+        },
+        "isLocked": {
+          "type": "boolean",
+          "description": "Whether this room is password-locked by the owner"
+        },
+        "passwordHash": {
+          "type": "string",
+          "description": "SHA-256 hex digest of the room password if locked",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the room was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the room was last updated"
+        }
+      },
+      "required": [
+        "roomCode",
+        "ownerUid",
+        "ownerUsername",
+        "ownerDisplayName",
+        "ownerAvatarId",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RoomMember": {
+      "title": "RoomMember",
+      "description": "Active participant membership record within a specific chat room.",
+      "type": "object",
+      "properties": {
+        "memberId": {
+          "type": "string",
+          "description": "Member document identifier matching usernameId",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomCode": {
+          "type": "string",
+          "description": "Parent room code",
+          "minLength": 4,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of this participant",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "description": "Username of this participant",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Generated Japanese display name of this participant",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "gender": {
+          "type": "string",
+          "description": "Chosen gender of this participant",
+          "enum": ["male", "female", "neutral"],
+          "minLength": 4,
+          "maxLength": 16
+        },
+        "avatarId": {
+          "type": "string",
+          "description": "Avatar identifier of this participant",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "memberUids": {
+          "type": "array",
+          "description": "Bounded list of authorized Firebase Auth UIDs for query enforcement"
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the participant joined"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the participant record was updated"
+        }
+      },
+      "required": [
+        "memberId",
+        "roomCode",
+        "userUid",
+        "username",
+        "displayName",
+        "gender",
+        "avatarId",
+        "memberUids",
+        "joinedAt",
+        "updatedAt"
+      ]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Real-time chat message posted inside a chat room session.",
+      "type": "object",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "description": "Unique message identifier",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "roomCode": {
+          "type": "string",
+          "description": "Parent chat room code",
+          "minLength": 4,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the message author",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderUsername": {
+          "type": "string",
+          "description": "MonkeyChat username of the message author",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderDisplayName": {
+          "type": "string",
+          "description": "Generated Japanese display name of the message author",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "senderAvatarId": {
+          "type": "string",
+          "description": "Avatar identifier of the message author",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "text": {
+          "type": "string",
+          "description": "Chat message content",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "memberUids": {
+          "type": "array",
+          "description": "Bounded list of up to 10 authorized Firebase Auth UIDs for query enforcement"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the message was sent"
+        }
+      },
+      "required": [
+        "messageId",
+        "roomCode",
+        "senderUid",
+        "senderUsername",
+        "senderDisplayName",
+        "senderAvatarId",
+        "text",
+        "memberUids",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/accounts/{usernameId}": {
+      "schema": "Account",
+      "description": "Private user account credentials, security question hashes, random Japanese identity, and permanent room code."
+    },
+    "/rooms/{roomCode}": {
+      "schema": "Room",
+      "description": "Permanent chat rooms indexed by unique room code."
+    },
+    "/rooms/{roomCode}/members/{memberId}": {
+      "schema": "RoomMember",
+      "description": "Subcollection of participants who have joined a chat room."
+    },
+    "/rooms/{roomCode}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Subcollection of real-time chat messages within a chat room."
+    }
+  }
+}
